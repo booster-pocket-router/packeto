@@ -17,15 +17,51 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"io"
 
 	"github.com/spf13/cobra"
+	"github.com/google/gopacket/pcap"
+	"github.com/google/gopacket/dumpcommand"
 )
+
+var iface string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "packeto",
 	Short: "A brief description of your application",
 	Run: func(cmd *cobra.Command, args []string) {
+		handle, err := pcap.OpenLive(iface, 1600, true, pcap.BlockForever)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error%v\n", err)
+			os.Exit(1)
+		}
+
+		// BPF filter
+		info, err := os.Stdin.Stat()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+		if info.Mode()&os.ModeCharDevice == 0 && info.Size() > 0 {
+			var builder strings.Builder
+			_, err := io.Copy(&builder, os.Stdin)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "unable to read from stdin: %v\n", err)
+				os.Exit(1)
+			}
+
+			filter := builder.String()
+			fmt.Fprintf(os.Stderr, "using BPF filter %q\n", filter)
+			if err = handle.SetBPFFilter(filter); err != nil {
+				fmt.Fprintf(os.Stderr, "unable to read from stdin: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		dumpcommand.Run(handle)
 	},
 }
 
@@ -38,3 +74,6 @@ func Execute() {
 	}
 }
 
+func init() {
+	rootCmd.Flags().StringVarP(&iface, "interface", "i", "en0", "target interface name")
+}
