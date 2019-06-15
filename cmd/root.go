@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"flag"
 	"os"
 	"strings"
 	"io"
@@ -45,7 +46,7 @@ var rootCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
-		if info.Mode()&os.ModeCharDevice == 0 && info.Size() > 0 {
+		if info.Size() > 0 {
 			var builder strings.Builder
 			_, err := io.Copy(&builder, os.Stdin)
 			if err != nil {
@@ -61,6 +62,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
+		flag.Parse() // required by Run function
 		dumpcommand.Run(handle)
 	},
 }
